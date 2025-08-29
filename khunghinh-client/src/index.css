@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; scroll-behavior: smooth; }
+
+.btn-primary { @apply inline-flex items-center gap-2 rounded-xl px-5 py-3 bg-blue-600 text-white font-medium shadow-soft hover:bg-blue-700 transition; }
+.btn-ghost   { @apply inline-flex items-center gap-2 rounded-xl px-5 py-3 bg-white/70 backdrop-blur text-blue-700 font-medium border border-white/80 hover:bg-white; }
+.card        { @apply bg-white rounded-2xl shadow-soft border border-gray-100; }
+.pill        { @apply inline-flex items-center px-4 py-2 rounded-full border bg-white hover:bg-gray-50 transition; }
+.nav-link    { @apply hover:text-blue-600 transition; }
+.tilt        { transition: transform .3s ease; }
+.tilt:hover  { transform: perspective(800px) rotateX(3deg) rotateY(-3deg) translateZ(4px); }
+
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+@keyframes float-slow { 0%,100%{transform:translateY(0)} 50%{transform:translateY(10px)} }
+.animate-float{ animation: float 14s ease-in-out infinite; }
+.animate-float-slow{ animation: float-slow 18s ease-in-out infinite; }
