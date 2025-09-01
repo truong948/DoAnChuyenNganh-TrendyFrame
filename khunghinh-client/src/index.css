@@ -16,3 +16,77 @@ html, body, #root { height: 100%; scroll-behavior: smooth; }
 @keyframes float-slow { 0%,100%{transform:translateY(0)} 50%{transform:translateY(10px)} }
 .animate-float{ animation: float 14s ease-in-out infinite; }
 .animate-float-slow{ animation: float-slow 18s ease-in-out infinite; }
+
+/* Lift & shadow mượt */
+.hover-lift {
+  transform: translateY(0);
+  transition: transform .25s ease, box-shadow .25s ease, filter .25s ease;
+}
+.hover-lift:hover { transform: translateY(-4px); }
+
+/* Hiệu ứng “shine” nhẹ trên card */
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: -150% auto auto -150%;
+  width: 120%;
+  height: 120%;
+  transform: rotate(20deg);
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.25) 50%, rgba(255,255,255,0) 100%);
+  transition: transform .8s ease;
+  pointer-events: none;
+}
+.shine:hover::after { transform: rotate(20deg) translateX(220%); }
+
+/* Nhịp “breath” cho nút chính */
+.btn-breathe { animation: breathe 2.4s ease-in-out infinite; }
+@keyframes breathe {
+  0%,100% { box-shadow: 0 8px 24px -12px rgba(37,99,235,.28) }
+  50% { box-shadow: 0 12px 36px -14px rgba(37,99,235,.45) }
+}
+
+/* nâng card nhẹ */
+.hover-lift { transform: translateY(0); transition: transform .25s ease, box-shadow .25s ease, filter .25s ease; }
+.hover-lift:hover { transform: translateY(-4px); }
+
+/* ánh sáng lướt qua */
+.shine { position: relative; overflow: hidden; }
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: -150% auto auto -150%;
+  width: 120%; height: 120%;
+  transform: rotate(20deg);
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.25) 50%, rgba(255,255,255,0) 100%);
+  transition: transform .8s ease; pointer-events: none;
+}
+.shine:hover::after { transform: rotate(20deg) translateX(220%); }
+
+/* nhịp thở cho CTA */
+.btn-breathe { animation: breathe 2.4s ease-in-out infinite; }
+@keyframes breathe {
+  0%,100% { box-shadow: 0 8px 24px -12px rgba(37,99,235,.28) }
+  50% { box-shadow: 0 12px 36px -14px rgba(37,99,235,.45) }
+}
+
+/* nâng card nhẹ */
+.hover-lift { transform: translateY(0); transition: transform .25s ease, box-shadow .25s ease, filter .25s ease; will-change: transform; }
+.hover-lift:hover { transform: translateY(-4px); }
+
+/* Shine an toàn, KHÔNG cắt con */
+.shine-safe { position: relative; }
+.shine-safe::after {
+  content: "";
+  position: absolute;
+  left: -150%; top: -150%;
+  width: 120%; height: 120%;
+  transform: rotate(20deg);
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.25) 50%, rgba(255,255,255,0) 100%);
+  transition: transform .8s ease; pointer-events: none;
+}
+.shine-safe:hover::after { transform: rotate(20deg) translateX(220%); }
+

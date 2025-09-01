@@ -25,7 +25,7 @@ export default function Footer() {
         {/* Cột 2: Khunghinh */}
         <div>
           <h3 className="font-semibold mb-3">Khunghinh</h3>
-          <ul className="space-y-2 text-gray-300 text-sm">
+          <ul className="space-y-2 text-gray-100 text-sm">
             <li><a href="#" className="hover:text-white">Liên hệ</a></li>
             <li><a href="#" className="hover:text-white">Điều khoản sử dụng</a></li>
             <li><a href="#" className="hover:text-white">Chính sách bảo mật</a></li>
@@ -35,7 +35,7 @@ export default function Footer() {
         {/* Cột 3: Công cụ */}
         <div>
           <h3 className="font-semibold mb-3">Công cụ</h3>
-          <ul className="space-y-2 text-gray-300 text-sm">
+          <ul className="space-y-2 text-gray-100 text-sm">
             <li><a href="/editor" className="hover:text-white">Tạo khung hình</a></li>
             <li><a href="#" className="hover:text-white">Xóa nền</a></li>
             <li><a href="#" className="hover:text-white">Tạo vùng trong suốt</a></li>
@@ -55,7 +55,7 @@ export default function Footer() {
               <UsersRound className="h-5 w-5" />
             </a>
           </div>
-          <div className="flex gap-8 mt-2 text-xs text-gray-300">
+          <div className="flex gap-8 mt-2 text-xs text-gray-100">
             <span>Page</span>
             <span>Group</span>
           </div>
@@ -66,7 +66,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="border-t border-white/20" />
       </div>
-      <div className="text-center text-gray-300 text-sm py-4">
+      <div className="text-center text-gray-100 text-sm py-4">
         2016 - 2025 © KhungHinh. All rights reserved.
       </div>
     </footer>

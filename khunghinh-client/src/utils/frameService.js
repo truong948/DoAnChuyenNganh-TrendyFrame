@@ -1,13 +1,13 @@
 // src/utils/frameService.js
 export const FRAMES = [
   {
-    alias: 'tet',
-    name: 'Khung Tết 2025',
+    alias: 'qk',
+    name: 'Khung Quốc Khánh',
     color: '#e11d48',
     // Thumbnail chỉ để hiển thị ngoài grid
-    thumb: '/frames/khung-hinh-tet.png',
+    thumb: '/frames/khung-hinh-quoc-khanh.png',
     // 👉 PNG trong suốt để overlay trong Editor (đặt file vào public/frames/tet.png)
-    overlay: '/frames/khung-hinh-tet.png',
+    overlay: '/frames/khung-hinh-quoc-khanh.png',
     used24h: 128,
   },
   {
@@ -35,11 +35,11 @@ export const FRAMES = [
     used24h: 44,
   },
   {
-    alias: 'tech',
-    name: 'Công nghệ',
+    alias: 'tet',
+    name: 'Khung Tết 2025',
     color: '#2563eb',
-    thumb: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=60',
-    overlay: '/frames/tech.png',
+    thumb: '/frames/khung-hinh-tet.png',
+    overlay: '/frames/khung-hinh-tet.png',
     used24h: 30,
   },
 ]
