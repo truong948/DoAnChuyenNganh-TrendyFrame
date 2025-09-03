@@ -100,7 +100,14 @@ export default function FrameCardClassic({ frame, rank, onUse }) {
         {/* Nút */}
         <div className="px-6 pb-6 pt-2">
           <button
-            onClick={() => (onUse ? onUse(frame) : nav(`/editor?alias=${alias}`))}
+            onClick={() => {
+              window.scrollTo(0, 0)                   // 👈 cuộn lên đầu ngay khi bấm
+              if (onUse) {
+                onUse(frame)
+              } else {
+                nav(`/editor?alias=${alias}`)        // rồi mới điều hướng sang Editor
+              }
+            }}
             className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 transition active:scale-[.98] shadow-sm"
           >
             Thử khung này

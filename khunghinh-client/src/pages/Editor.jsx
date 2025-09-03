@@ -1,270 +1,460 @@
 // src/pages/Editor.jsx
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { getFrameByAlias, getFrames } from '../utils/frameService'
-import QrModal from '../components/QrModal'
-import { HexColorPicker } from 'react-colorful'
-import useImage from 'use-image' // npm i use-image
-import { Stage, Layer, Image as KImage, Rect } from 'react-konva'
+import { getFrameByAlias } from '../utils/frameService'
+import useImage from 'use-image'
+import { Stage, Layer, Image as KImage, Rect, Group, Text as KText } from 'react-konva'
 
-/* ================= Helper components ================= */
+const EXPORT_SIZE = 1080
+const PREVIEW_MAX = 500
+const PREVIEW_MIN = 300
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v))
 
-function UserImage({ url, scale, rotation }) {
-  const [imageObj, setImageObj] = useState(null)
-
-  useEffect(() => {
-    if (!url) return
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => setImageObj(img)
-    img.src = url
-  }, [url])
-
-  if (!imageObj) return null
-  const w = imageObj.width
-  const h = imageObj.height
-
-  // đặt ảnh ở giữa, cho kéo tự do
+/* ================= Helpers ================= */
+function CenterImage({ url, scale, rotation, flipX }) {
+  const [img] = useImage(url || '', 'anonymous') // giữ CORS anonymous
+  if (!img) return null
   return (
     <KImage
-      image={imageObj}
-      x={400}
-      y={400}
-      offsetX={w / 2}
-      offsetY={h / 2}
+      image={img}
+      x={0}
+      y={0}
+      offsetX={img.width / 2}
+      offsetY={img.height / 2}
       draggable
-      scaleX={scale}
+      scaleX={scale * (flipX ? -1 : 1)}
       scaleY={scale}
       rotation={rotation}
     />
   )
 }
 
-function FrameOverlay({ url }) {
-  // PNG khung trong suốt
-  const [img] = useImage(url, 'anonymous')
+function Overlay({ url, size }) {
+  const [img] = useImage(url || '', 'anonymous') // giữ CORS anonymous
   return img ? (
-    <KImage image={img} x={0} y={0} width={800} height={800} listening={false} />
+    <KImage
+      image={img}
+      x={-size / 2}
+      y={-size / 2}
+      width={size}
+      height={size}
+      listening={false}
+    />
   ) : null
 }
 
-/* ================= Main Editor ================= */
+/* Hộp kéo-thả upload (dropzone) */
+function Dropzone({ onPick, className = '' }) {
+  const inputRef = useRef(null)
+  const [dragOver, setDragOver] = useState(false)
 
-export default function Editor() {
-  const [params] = useSearchParams()
-  const initialAlias = params.get('alias') || 'tet'
-
-  const stageRef = useRef(null)
-
-  const [userUrl, setUserUrl] = useState('')
-  const [scale, setScale] = useState(1)
-  const [rotation, setRotation] = useState(0)
-
-  const [alias, setAlias] = useState(initialAlias)
-  const [frame, setFrame] = useState(null)
-  const [frames, setFrames] = useState([])
-
-  // fallback khi KHÔNG có PNG overlay
-  const [thickness, setThickness] = useState(40)
-  const [color, setColor] = useState('#2563eb')
-
-  const [qrOpen, setQrOpen] = useState(false)
-  const [crop, setCrop] = useState({ enabled: false, x: 100, y: 100, size: 600 })
-
-  useEffect(() => { getFrames().then(setFrames) }, [])
-  useEffect(() => {
-    getFrameByAlias(alias).then(f => {
-      setFrame(f)
-      if (f?.color) setColor(f.color)
-    })
-  }, [alias])
-
-  const overlayUrl = useMemo(
-    () => frame?.overlay || frame?.thumb || null,
-    [frame]
-  )
-  const hasOverlayPng = Boolean(frame?.overlay)
-
-  const onUpload = (e) => {
-    const f = e.target.files?.[0]
-    if (!f) return
-    setUserUrl(URL.createObjectURL(f))
-  }
-
-  const onLoadUrl = () => {
-    const v = prompt('Nhập URL ảnh (https://...)')
-    if (v) setUserUrl(v)
-  }
-
-  const exportPng = () => {
-    const st = stageRef.current
-    if (!st) return
-
-    // lưu lại trạng thái
-    const old = {
-      w: st.width(),
-      h: st.height(),
-      x: st.x(),
-      y: st.y(),
-    }
-
-    let dataUrl
-    if (crop.enabled) {
-      st.width(crop.size)
-      st.height(crop.size)
-      st.x(-crop.x)
-      st.y(-crop.y)
-      st.draw()
-      dataUrl = st.toDataURL({ mimeType: 'image/png', pixelRatio: 2 })
-      // reset
-      st.x(old.x); st.y(old.y); st.width(old.w); st.height(old.h); st.draw()
-    } else {
-      dataUrl = st.toDataURL({ mimeType: 'image/png', pixelRatio: 2 })
-    }
-
-    const a = document.createElement('a')
-    a.href = dataUrl
-    a.download = `khung-${alias}.png`
-    a.click()
+  const openPicker = () => inputRef.current?.click()
+  const onFiles = (files) => {
+    const f = files?.[0]
+    if (f) onPick(f)
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12">
-      <h1 className="text-2xl font-bold mb-4">Trình chỉnh ảnh</h1>
-
-      <div className="card p-4 mb-6 grid lg:grid-cols-[1fr_340px] gap-6">
-        {/* Canvas */}
-        <div className="border rounded-xl overflow-hidden relative">
-          <Stage ref={stageRef} width={800} height={800}>
-            <Layer>
-              {userUrl ? (
-                <UserImage url={userUrl} scale={scale} rotation={rotation} />
-              ) : (
-                <Rect x={0} y={0} width={800} height={800} fill={'#f3f4f6'} />
-              )}
-
-              {/* Overlay PNG nếu có, nếu không thì viền màu fallback */}
-              {overlayUrl ? (
-                <FrameOverlay url={overlayUrl} />
-              ) : (
-                <Rect
-                  x={0}
-                  y={0}
-                  width={800}
-                  height={800}
-                  listening={false}
-                  stroke={color}
-                  strokeWidth={thickness}
-                />
-              )}
-
-              {/* Crop mask preview */}
-              {crop.enabled && (
-                <>
-                  <Rect x={0} y={0} width={800} height={800} fill="rgba(0,0,0,0.45)" />
-                  <Rect
-                    x={crop.x}
-                    y={crop.y}
-                    width={crop.size}
-                    height={crop.size}
-                    fill="transparent"
-                    stroke="white"
-                    strokeWidth={2}
-                    listening={false}
-                  />
-                </>
-              )}
-            </Layer>
-          </Stage>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={openPicker}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && openPicker()}
+      onDrop={(e) => { e.preventDefault(); setDragOver(false); onFiles(e.dataTransfer.files) }}
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+      onDragLeave={() => setDragOver(false)}
+      className={[
+        'w-full h-32 sm:h-36 rounded-xl border-2 border-dashed grid place-items-center',
+        'transition-colors select-none cursor-pointer',
+        dragOver ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300 bg-white',
+        className,
+      ].join(' ')}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => onFiles(e.target.files)}
+      />
+      <div className="text-center">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+          className="mx-auto mb-2 h-7 w-7 text-slate-700" fill="currentColor">
+          <path d="M7 18a5 5 0 0 1-.75-9.94 6 6 0 0 1 11.5 1.63A4 4 0 1 1 18 18H7Zm6-7v4a1 1 0 1 1-2 0v-4H9.5a1 1 0 0 1-.7-1.7l2.5-2.5a1 1 0 0 1 1.4 0l2.5 2.5a1 1 0 0 1-.7 1.7H13Z" />
+        </svg>
+        <div className="text-slate-900 font-semibold text-sm">
+          Kéo thả hoặc <span className="text-indigo-600">Bấm vào đây</span>
         </div>
-
-        {/* Controls */}
-        <div className="space-y-4">
-          <div className="flex gap-3 flex-wrap">
-            <input type="file" accept="image/*" onChange={onUpload} />
-            <button onClick={onLoadUrl} className="pill">Dán URL ảnh</button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <label className="text-sm">Zoom {scale.toFixed(2)}</label>
-            <input type="range" min="0.2" max="3" step="0.01" value={scale} onChange={e => setScale(+e.target.value)} />
-
-            <label className="text-sm">Xoay {rotation}°</label>
-            <input type="range" min="-180" max="180" step="1" value={rotation} onChange={e => setRotation(+e.target.value)} />
-
-            {/* Khóa điều khiển khi có overlay PNG */}
-            <label className={`text-sm ${hasOverlayPng ? 'opacity-50' : ''}`}>Độ dày khung {thickness}px</label>
-            <input
-              type="range"
-              min="10" max="100" step="2"
-              value={thickness}
-              onChange={e => setThickness(+e.target.value)}
-              disabled={hasOverlayPng}
-            />
-          </div>
-
-          <div className={`${hasOverlayPng ? 'pointer-events-none opacity-50' : ''}`}>
-            <div className="text-sm mb-2">Màu khung (fallback)</div>
-            <HexColorPicker color={color} onChange={setColor} />
-          </div>
-
-          <div className="grid gap-3">
-            <select value={alias} onChange={e => setAlias(e.target.value)} className="border rounded px-2 py-2">
-              {frames.map(f => <option key={f.alias} value={f.alias}>{f.name}</option>)}
-            </select>
-
-            <div className="flex flex-wrap gap-3 items-center">
-              <button onClick={exportPng} className="btn-primary">Xuất ảnh</button>
-              <button onClick={() => setQrOpen(true)} className="pill">QR chia sẻ</button>
-
-              <label className="pill">
-                <input
-                  className="mr-2"
-                  type="checkbox"
-                  checked={crop.enabled}
-                  onChange={e => setCrop({ ...crop, enabled: e.target.checked })}
-                />
-                Bật chế độ cắt (crop)
-              </label>
-            </div>
-
-            {crop.enabled && (
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <label>X: {crop.x}</label>
-                <input type="range" min="0" max="200" value={crop.x} onChange={e => setCrop({ ...crop, x: +e.target.value })} />
-                <label>Y: {crop.y}</label>
-                <input type="range" min="0" max="200" value={crop.y} onChange={e => setCrop({ ...crop, y: +e.target.value })} />
-                <label>Kích thước: {crop.size}</label>
-                <input type="range" min="200" max="800" step="10" value={crop.size} onChange={e => setCrop({ ...crop, size: +e.target.value })} />
-              </div>
-            )}
-          </div>
-        </div>
+        <div className="text-slate-500 text-sm">để đăng tải hình ảnh</div>
       </div>
-
-      <QrModal open={qrOpen} onClose={() => setQrOpen(false)} text={window.location.href} />
     </div>
   )
 }
 
-/* ================= Utils ================= */
+/* ================= Page ================= */
+export default function Editor() {
 
-function loadImage(src, cross = false) {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    if (cross) img.crossOrigin = 'anonymous'
-    img.onload = () => resolve(img)
-    img.onerror = reject
-    img.src = src
-  })
-}
 
-// Fit ảnh người dùng theo kiểu cover vào vùng vuông SIZE x SIZE
-function coverFit(imgW, imgH, boxW, boxH) {
-  const r = Math.max(boxW / imgW, boxH / imgH)
-  const sx = (imgW - boxW / r) / 2
-  const sy = (imgH - boxH / r) / 2
-  const sw = boxW / r
-  const sh = boxH / r
-  return { sx, sy, sw, sh }
+
+  const [params] = useSearchParams()
+  const alias = params.get('alias') || 'khung-hinh-quoc-khanh'
+
+  const [frame, setFrame] = useState(null)
+  const [userUrl, setUserUrl] = useState('')
+  const [scale, setScale] = useState(1)
+  const [rotation, setRotation] = useState(0)
+  const [flipX, setFlipX] = useState(false)
+
+  // Văn bản
+  const [textMode, setTextMode] = useState(false)
+  const [text, setText] = useState('Tự hào Việt Nam')
+  const [textSize, setTextSize] = useState(28)
+  const [textColor, setTextColor] = useState('#0f172a')
+
+  // trạng thái sẵn sàng export
+  const [ready, setReady] = useState(false)
+  const [lastObjectUrl, setLastObjectUrl] = useState(null)
+
+  // Preview size
+  const [viewSize, setViewSize] = useState(PREVIEW_MAX)
+  const boxRef = useRef(null)
+  useEffect(() => {
+    const ro = new ResizeObserver(() => {
+      const w = boxRef.current?.clientWidth || (PREVIEW_MAX + 40)
+      const s = Math.max(PREVIEW_MIN, Math.min(PREVIEW_MAX, Math.floor(w - 40)))
+      setViewSize(s)
+    })
+    if (boxRef.current) ro.observe(boxRef.current)
+    return () => ro.disconnect()
+  }, [])
+
+  useEffect(() => { getFrameByAlias(alias).then(setFrame) }, [alias])
+  const overlayUrl = useMemo(() => frame?.overlay || frame?.thumb || null, [frame])
+
+  const stageRef = useRef(null)
+  const fileInputRef = useRef(null)
+  const shareRef = useRef(null)
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : ''
+
+  // sẵn sàng khi có ảnh người dùng và overlay đã xác định
+  useEffect(() => {
+    setReady(!!userUrl && !!overlayUrl)
+  }, [userUrl, overlayUrl])
+
+  // cursor + wheel zoom (chỉ bật khi có ảnh)
+  const setStageCursor = (cur) => {
+    const c = stageRef.current?.container()
+    if (c) c.style.cursor = cur
+  }
+  const wheelTimerRef = useRef(null)
+  const handleWheel = (e) => {
+    if (!userUrl) return
+    e.evt.preventDefault()
+    const out = e.evt.deltaY > 0
+    setStageCursor(out ? 'zoom-out' : 'zoom-in')
+    clearTimeout(wheelTimerRef.current)
+    wheelTimerRef.current = setTimeout(
+      () => setStageCursor(textMode ? 'text' : 'grab'), 120
+    )
+    const factor = out ? 0.95 : 1.05
+    setScale((s) => clamp(s * factor, 0.2, 3))
+  }
+
+  const downloadPNG = () => {
+    const node = stageRef.current
+    if (!node) return
+    const pixelRatio = EXPORT_SIZE / viewSize
+    try {
+      // Dùng toDataURL của Konva Stage
+      const dataURL = node.toDataURL({
+        pixelRatio,
+        mimeType: 'image/png',
+        quality: 1,
+      })
+      const a = document.createElement('a')
+      a.href = dataURL
+      a.download = `${alias}.png`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+    } catch (err) {
+      console.error('Save failed:', err)
+      alert(
+        'Không thể tải ảnh.\nCó thể do ảnh khung/overlay hoặc ảnh tải lên không cho phép CORS.\n' +
+        'Hãy host file overlay/ảnh cùng domain hoặc bật Access-Control-Allow-Origin: *.'
+      )
+    }
+  }
+
+  const resetAll = () => { setScale(1); setRotation(0); setFlipX(false); setTextMode(false) }
+  const zoomStep = 0.05
+  const rotStep = 5
+  const hasImage = !!userUrl
+
+  const pickFile = (file) => {
+    if (!file) return
+    const nextUrl = URL.createObjectURL(file)
+    // thu hồi url cũ tránh rò rỉ
+    if (lastObjectUrl) URL.revokeObjectURL(lastObjectUrl)
+    setLastObjectUrl(nextUrl)
+    setUserUrl(nextUrl)
+  }
+
+  // thu hồi khi unmount
+  useEffect(() => {
+    return () => {
+      if (lastObjectUrl) URL.revokeObjectURL(lastObjectUrl)
+    }
+  }, [lastObjectUrl])
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-extrabold text-center mb-5">#TuhaoVietNam</h1>
+
+      {/* KHUNG NÉT ĐỨT CHÍNH */}
+      <div
+        ref={boxRef}
+        className="max-w-[560px] mx-auto border-2 border-dashed border-gray-300 rounded-xl p-4 bg-white"
+      >
+        {/* Preview */}
+        <div className="flex justify-center">
+          <Stage
+            ref={stageRef}
+            width={viewSize}
+            height={viewSize}
+            className="rounded-md"
+            onMouseEnter={() => setStageCursor(hasImage ? (textMode ? 'text' : 'grab') : 'default')}
+            onMouseLeave={() => setStageCursor('default')}
+            onMouseDown={(e) => {
+              if (!hasImage) return
+              if (e.target?.draggable?.() || e.target?.attrs?.draggable) setStageCursor('grabbing')
+            }}
+            onMouseUp={() => setStageCursor(hasImage ? (textMode ? 'text' : 'grab') : 'default')}
+            onDragStart={() => hasImage && setStageCursor('grabbing')}
+            onDragEnd={() => setStageCursor(hasImage ? (textMode ? 'text' : 'grab') : 'default')}
+            onWheel={handleWheel}
+          >
+            <Layer>
+              {!hasImage && (
+                <Rect x={0} y={0} width={viewSize} height={viewSize} fill="#f3f4f6" />
+              )}
+              <Group x={viewSize / 2} y={viewSize / 2}>
+                {hasImage && (
+                  <CenterImage url={userUrl} scale={scale} rotation={rotation} flipX={flipX} />
+                )}
+                {textMode && hasImage && (
+                  <KText
+                    text={text}
+                    fontSize={textSize}
+                    fill={textColor}
+                    x={0}
+                    y={-viewSize * 0.18}
+                    align="center"
+                    width={viewSize}
+                    draggable
+                  />
+                )}
+                {overlayUrl && <Overlay url={overlayUrl} size={viewSize} />}
+              </Group>
+            </Layer>
+          </Stage>
+        </div>
+
+        {/* CHƯA CÓ ẢNH → Dropzone to */}
+        {!hasImage && (
+          <div className="mt-4">
+            <Dropzone onPick={pickFile} />
+          </div>
+        )}
+
+        {/* ĐÃ CÓ ẢNH → Controls + NÚT ĐỔI HÌNH (button) */}
+        {hasImage && (
+          <>
+            {/* dải nút trên */}
+            <div className="mt-4 flex items-center justify-between gap-2">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setFlipX((v) => !v)}
+                  className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-sm"
+                >
+                  🖼️ Lật hình
+                </button>
+                <button
+                  onClick={() => setTextMode((v) => !v)}
+                  className={`px-3 py-1.5 rounded-md text-sm ${textMode ? 'bg-indigo-600 text-white' : 'bg-slate-100 hover:bg-slate-200'
+                    }`}
+                >
+                  🅰️ Văn bản
+                </button>
+              </div>
+              <button
+                onClick={resetAll}
+                className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-sm"
+              >
+                🔄 Reset
+              </button>
+            </div>
+
+            {/* sliders */}
+            <div className="mt-3 grid gap-3 text-sm">
+              <div className="grid grid-cols-[auto,1fr,auto] items-center gap-2">
+                <button
+                  onClick={() => setScale((s) => clamp(+(s - zoomStep).toFixed(3), 0.2, 3))}
+                  className="h-8 w-8 rounded-md border bg-white hover:bg-slate-50"
+                  title="Thu nhỏ"
+                >
+                  🔍
+                </button>
+                <input
+                  type="range" min="0.2" max="3" step="0.01" value={scale}
+                  onChange={(e) => setScale(+e.target.value)} className="w-full"
+                />
+                <button
+                  onClick={() => setScale((s) => clamp(+(s + zoomStep).toFixed(3), 0.2, 3))}
+                  className="h-8 w-8 rounded-md border bg-white hover:bg-slate-50"
+                  title="Phóng to"
+                >
+                  🔎
+                </button>
+              </div>
+              <div className="grid grid-cols-[auto,1fr,auto] items-center gap-2">
+                <button
+                  onClick={() => setRotation((r) => r - rotStep)}
+                  className="h-8 w-8 rounded-md border bg-white hover:bg-slate-50"
+                  title="Xoay trái"
+                >
+                  ↶
+                </button>
+                <input
+                  type="range" min="-180" max="180" step="1" value={rotation}
+                  onChange={(e) => setRotation(+e.target.value)} className="w-full"
+                />
+                <button
+                  onClick={() => setRotation((r) => r + rotStep)}
+                  className="h-8 w-8 rounded-md border bg-white hover:bg-slate-50"
+                  title="Xoay phải"
+                >
+                  ↷
+                </button>
+              </div>
+            </div>
+
+            {/* hàng nút dưới */}
+            <div className="mt-4 flex items-center justify-between">
+              {/* Nút ĐỔI HÌNH */}
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) pickFile(f)
+                  }}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-3.5 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 font-medium text-sm"
+                >
+                  🖼️ Đổi hình
+                </button>
+              </div>
+
+              <button
+                onClick={downloadPNG}
+                disabled={!ready}
+                className={`px-3.5 py-1.5 rounded-md font-medium text-sm ${ready
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  : 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                  }`}
+                title={ready ? 'Xuất ảnh PNG' : 'Hãy chờ ảnh/khung sẵn sàng'}
+              >
+                ⬇️ Tải về
+              </button>
+            </div>
+
+            {textMode && (
+              <div className="mt-4 grid sm:grid-cols-3 gap-3 text-sm">
+                <input
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Nhập nội dung"
+                  className="sm:col-span-2 rounded-md border px-3 py-2 outline-none"
+                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number" min={14} max={72} value={textSize}
+                    onChange={(e) => setTextSize(+e.target.value)}
+                    className="w-24 rounded-md border px-2 py-2 outline-none"
+                  />
+                  <input
+                    type="color" value={textColor}
+                    onChange={(e) => setTextColor(e.target.value)}
+                    className="h-9 w-9 rounded-md border p-0"
+                  />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* PHẦN CHIA Sẻ */}
+      <div ref={shareRef} className="mt-8 flex flex-col items-center">
+        <img
+          alt="logo"
+          src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Huy_hieu_doan.svg/120px-Huy_hieu_doan.svg.png"
+          className="w-14 h-14 object-contain"
+        />
+        <h3 className="mt-2 font-semibold text-base">Ban Tuyên giáo TW Đoàn</h3>
+        <div className="text-gray-500 text-xs mt-1">08:17 18/08/2025</div>
+
+        <div className="mt-4 w-full max-w-[520px] rounded-xl border border-dashed border-gray-300 p-3">
+          <div className="text-gray-600 font-medium mb-2 text-sm">Chia sẻ</div>
+
+          <div className="relative">
+            <input
+              readOnly value={shareUrl}
+              className="w-full rounded-md border border-indigo-200 bg-indigo-50/40 px-3 py-2 pr-10 outline-none text-sm"
+            />
+            <button
+              onClick={() => navigator.clipboard.writeText(shareUrl)}
+              className="absolute right-1 top-1/2 -translate-y-1/2 px-2 py-1 rounded-md bg-indigo-600 text-white text-xs hover:bg-indigo-700"
+              title="Sao chép"
+            >
+              ⧉
+            </button>
+          </div>
+
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <img
+              alt="qr" width="120" height="120"
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(shareUrl)}`}
+              className="rounded-md"
+            />
+            <div className="flex gap-2">
+              <a
+                className="px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 text-sm"
+                href={`https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(shareUrl)}`}
+                download="qr.png"
+              >
+                Tải mã QR
+              </a>
+              <button
+                onClick={downloadPNG}
+                disabled={!ready}
+                className={`px-3 py-1.5 rounded-md text-sm ${ready
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  : 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                  }`}
+              >
+                Tải ảnh
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
