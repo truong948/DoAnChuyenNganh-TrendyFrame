@@ -1,3 +1,4 @@
+// src/App.jsx
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar.jsx'
 import Footer from './components/Footer.jsx'
@@ -12,11 +13,14 @@ export default function App() {
     <BrowserRouter>
       <Navbar />
       <Routes>
-        <Route path='/' element={<Home />} />
-        <Route path='/tools' element={<Tools />} />
-        <Route path='/trending' element={<Trending />} />
-        <Route path='/editor' element={<Editor />} />
-        <Route path='/login' element={<Login />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/tools" element={<Tools />} />
+        <Route path="/trending" element={<Trending />} />
+        <Route path="/editor" element={<Editor />} />
+        <Route path="/login" element={<Login />} />
+
+        {/* đặt cuối cùng */}
+        <Route path="/:alias" element={<Editor />} />
       </Routes>
       <Footer />
     </BrowserRouter>

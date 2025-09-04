@@ -9,6 +9,7 @@ import { motion } from 'framer-motion'
 import { MotionCard, MotionStagger, fadeUp } from '../components/Anim'
 import { Play } from "lucide-react";
 
+
 /* ===== NỀN XANH KIỂU CUBE (nâng cấp) ===== */
 function BlueCubesBackground() {
   return (
@@ -47,6 +48,8 @@ function BlueCubesBackground() {
           </g>
         ))}
       </svg>
+
+
     </div>
   )
 }
@@ -70,12 +73,22 @@ export default function Home() {
     return scored.sort((a, b) => b._score - a._score).slice(0, 4)
   }, [frames])
 
+  // Lọc khung cho campaign A80 (đổi điều kiện theo dữ liệu của bạn)
+  const a80Frames = useMemo(() => {
+    if (!frames?.length) return [];
+    return frames.filter(f =>
+      (f.campaign && String(f.campaign).toLowerCase().includes('a80')) ||
+      (Array.isArray(f.tags) && f.tags.some(t => String(t).toLowerCase().includes('a80')))
+    ).slice(0, 20);
+  }, [frames]);
+
   return (
     <div>
       {/* ============ HERO ============ */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden min-h-[70vh] md:min-h-[75vh] flex items-center">
         <BlueCubesBackground />
-        <div className="relative z-10 max-w-7xl mx-auto grid md:grid-cols-2 gap-10 items-center px-6 py-20">
+
+        <div className="relative z-10 max-w-7xl mx-auto grid md:grid-cols-2 gap-10 items-center px-6 py-12">
           {/* Cột trái */}
           <div className="max-w-xl">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-medium ring-1 ring-blue-200/60 shadow-sm mb-4">
@@ -119,6 +132,55 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+
+      {/* ============ CAMPAIGN STRIP (A80) ============ */}
+      {a80Frames.length > 0 && (
+        <section className="relative overflow-hidden">
+          {/* Nền xanh gradient + trang trí */}
+          <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-[#0d47a1] via-[#1976d2] to-[#1565c0]" />
+          <div aria-hidden className="absolute inset-0 opacity-[.08] [background:radial-gradient(80%_80%_at_20%_10%,#fff,transparent_60%)]" />
+          <div className="absolute -top-20 left-1/4 h-[280px] w-[280px] rounded-full bg-sky-300/30 blur-3xl animate-float" />
+          <div className="absolute bottom-[-120px] right-[15%] h-[360px] w-[360px] rounded-full bg-sky-400/25 blur-3xl animate-float-slow" />
+
+          <div className="relative max-w-7xl mx-auto px-6 py-8">
+            <h2 className="text-white text-2xl md:text-3xl font-extrabold tracking-wide drop-shadow-md">
+              KHUNG HÌNH MỚI NHẤT NĂM <span className="opacity-90">2025</span>
+            </h2>
+
+            {/* Container carousel */}
+            <div className="mt-4 rounded-3xl bg-white/90 shadow-[0_10px_40px_-10px_rgba(0,0,0,.25)] ring-1 ring-blue-200/60 p-4 backdrop-blur">
+              <div className="px-3 pb-2">
+                <div className="text-[15px] font-semibold text-blue-700">Khung hình Đại hội Đảng</div>
+              </div>
+
+              <div className="overflow-x-auto no-scrollbar thin-scrollbar">
+                <ul className="flex gap-4 min-w-max px-2 pb-2">
+                  {a80Frames.map((f, i) => (
+                    <li key={f.alias || i} className="shrink-0">
+                      <button
+                        onClick={() => nav(`/editor?alias=${f.alias}`)}
+                        className="group block w-[210px] h-[240px] rounded-2xl overflow-hidden ring-1 ring-black/5 bg-white hover:translate-y-[-2px] transition shadow-[0_10px_25px_-12px_rgba(0,0,0,.25)]"
+                        title={f.name || 'Khung'}
+                      >
+                        <div className="relative w-full h-[180px] bg-gray-100">
+                          <img src={f.thumb || f.overlay} alt={f.name || 'frame'} className="w-full h-full object-cover" loading="lazy" />
+                          <div className="absolute inset-0 ring-1 ring-black/5" />
+                        </div>
+                        <div className="p-3 text-left">
+                          <div className="line-clamp-1 font-semibold text-[15px] text-gray-800">{f.name || 'Khung A80'}</div>
+                          <div className="mt-0.5 text-xs text-gray-500">{f.author || 'MARKETING VEC'}</div>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
 
       {/* ============ TOOLS ============ */}
       <section className="relative">
@@ -198,19 +260,50 @@ export default function Home() {
 
       {/* ============ TEMPLATES ============ */}
       <section className="relative overflow-hidden">
-        <div aria-hidden className="absolute inset-0 bg-gray-50" />
-        <div aria-hidden className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-sky-200/40 blur-3xl" />
-        <div aria-hidden className="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-sky-300/30 blur-3xl" />
+        {/* Nền xanh gradient A80 */}
+        <div
+          aria-hidden
+          className="absolute inset-0 
+               bg-gradient-to-b from-[#0d47a1] via-[#1976d2] to-[#1565c0]"
+        />
+
+        {/* Glow radial nhẹ */}
+        <div
+          aria-hidden
+          className="absolute inset-0 opacity-[.08]
+               [background:radial-gradient(80%_80%_at_20%_10%,#fff,transparent_60%)]"
+        />
+
+        {/* Floating blobs */}
+        <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-sky-200/40 blur-3xl animate-float" />
+        <div className="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-sky-300/30 blur-3xl animate-float-slow" />
+
+        {/* Nội dung */}
         <div className="relative max-w-7xl mx-auto px-6 py-12">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">Thử ngay mẫu thiết kế</h2>
-            <button className="px-4 py-2 rounded-xl font-semibold text-gray-800 ring-1 ring-gray-300/70 hover:bg-white" onClick={() => nav('/trending')}>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,.35)]">
+              Thử ngay mẫu thiết kế
+            </h2>
+            <button
+              onClick={() => nav('/trending')}
+              className="px-4 py-2 rounded-xl font-semibold text-white
+                   ring-1 ring-white/40 hover:bg-white/10 transition"
+            >
               Xem tất cả
             </button>
           </div>
-          <FrameGrid frames={frames} onUse={(f) => nav(`/editor?alias=${f.alias}`)} />
+
+          {/* Frame Grid - nền trắng */}
+          <div className="rounded-3xl p-2 bg-white ring-1 ring-gray-200 shadow-lg">
+            <FrameGrid
+              frames={frames}
+              onUse={(f) => nav(`/editor?alias=${f.alias}`)}
+            />
+          </div>
         </div>
       </section>
+
+
 
       {/* ============ FOLLOW ============ */}
       <section className="max-w-7xl mx-auto px-6 py-12">

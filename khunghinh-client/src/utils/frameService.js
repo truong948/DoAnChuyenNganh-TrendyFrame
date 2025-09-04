@@ -1,47 +1,63 @@
 // src/utils/frameService.js
 export const FRAMES = [
   {
-    alias: 'qk',
+    alias: 'quockhanh',
     name: 'Khung Quốc Khánh',
     color: '#e11d48',
     // Thumbnail chỉ để hiển thị ngoài grid
-    thumb: '/frames/khung-hinh-quoc-khanh.png',
+    thumb: '/frames/khung-hinh-quockhanh.png',
     // 👉 PNG trong suốt để overlay trong Editor (đặt file vào public/frames/tet.png)
-    overlay: '/frames/khung-hinh-quoc-khanh.png',
+    overlay: '/frames/khung-hinh-quockhanh.png',
     used24h: 128,
+    campaign: 'A80',   
   },
   {
-    alias: 'vn',
-    name: 'Tình yêu',
+    alias: 'khung304',
+    name: 'Khung 30/04',
     color: '#dc2626',
-    thumb: '/frames/khung-hinh-tinh-yeu.png',
-    overlay: '/frames/khung-hinh-tinh-yeu.png',
+    thumb: '/frames/kh3.png',
+    overlay: '/frames/kh3.png',
     used24h: 86,
+    campaign: 'A80',
   },
   {
-    alias: 'love',
-    name: 'Mùa thu',
+    alias: 'trungthu',
+    name: 'Khung Trung thu',
     color: '#f43f5e',
-    thumb: '/frames/khung-hinh-mua-thu.png',
-    overlay: '/frames/khung-hinh-mua-thu.png',
+    thumb: '/frames/khung-trung-thu.png',
+    overlay: '/frames/khung-trung-thu.png',
     used24h: 64,
+    campaign: 'A80',
   },
   {
-    alias: 'noel',
-    name: 'Giáng sinh',
+    alias: 'giangsinh',
+    name: 'Khung Giáng sinh',
     color: '#22c55e',
-    thumb: '/frames/khung-hinh-giang-sinh.png',
-    overlay: '/frames/khung-hinh-giang-sinh.png',
+    thumb: '/frames/khung-giang-sinh.png',
+    overlay: '/frames/khung-giang-sinh.png',
     used24h: 44,
+    campaign: 'A80',
   },
+
   {
-    alias: 'tet',
-    name: 'Khung Tết 2025',
-    color: '#2563eb',
-    thumb: '/frames/khung-hinh-tet.png',
-    overlay: '/frames/khung-hinh-tet.png',
-    used24h: 30,
+    alias: 'daihoi3',
+    name: 'Khung Đại hội Lần III',
+    thumb: '/frames/kh1.png',
+    overlay: '/frames/kh1.png',
+    author: 'MARKETING VEC',
+    tags: ['a80', 'daihoi', '2025'],
+    featured: true
   },
+
+  {
+    alias: 'khung-phuong-tan-son-nhi',
+    name: 'Khung Phương Tân Sơn Nhì',
+    thumb: '/frames/kh2.png',
+    overlay: '/frames/kh2.png',
+    author: 'MARKETING VEC',
+    tags: ['a80', 'daihoi', '2025'],
+    featured: true
+  }
 ]
 
 // giữ nguyên các hàm

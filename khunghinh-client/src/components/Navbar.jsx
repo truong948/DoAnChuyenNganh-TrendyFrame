@@ -48,21 +48,25 @@ export default function Navbar() {
         className={[
           'fixed top-0 inset-x-0 z-50',
           'transition-all duration-300',
-          // Fallback nền chắc chắn hiển thị
-          'bg-white/95',
-          // Khi trình duyệt hỗ trợ backdrop-filter, dùng lớp trong suốt + blur cho đẹp
-          'supports-[backdrop-filter]:bg-white/60 supports-[backdrop-filter]:backdrop-blur-md',
-          scrolled ? 'shadow-sm' : 'shadow-none'
+          // nền trong suốt nhiều hơn
+          'bg-white/30',
+          // blur mạnh hơn
+          'supports-[backdrop-filter]:bg-white/20 supports-[backdrop-filter]:backdrop-blur-xl',
+          scrolled ? 'shadow-md' : 'shadow-none'
         ].join(' ')}
       >
+
+
         <nav className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           {/* Logo */}
-          <Link
-            to="/"
-            className="text-2xl font-extrabold text-blue-700 tracking-wide"
-          >
-            Khung Hình
+          <Link to="/" className="flex items-center gap-2 select-none" aria-label="Khung Hình">
+            <img
+              src="/frames/logo.png"
+              alt="Logo Khung Hình"
+              className="h-14 w-14 object-contain"   // h-14 = 56px
+            />
           </Link>
+
 
           {/* Menu Desktop */}
           <div className="hidden md:flex items-center gap-8 text-gray-800 font-medium">

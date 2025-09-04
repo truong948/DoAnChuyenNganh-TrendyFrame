@@ -97,7 +97,6 @@ export default function FrameCardClassic({ frame, rank, onUse }) {
           </div>
         </div>
 
-        {/* Nút */}
         <div className="px-6 pb-6 pt-2">
           <button
             onClick={() => {

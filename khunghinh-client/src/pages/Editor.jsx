@@ -1,6 +1,6 @@
 // src/pages/Editor.jsx
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { getFrameByAlias } from '../utils/frameService'
 import useImage from 'use-image'
 import { Stage, Layer, Image as KImage, Rect, Group, Text as KText } from 'react-konva'
@@ -10,9 +10,12 @@ const PREVIEW_MAX = 500
 const PREVIEW_MIN = 300
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v))
 
+// luôn dùng anonymous để cho phép canvas export nếu server trả CORS đúng
+const corsMode = () => 'anonymous'
+
 /* ================= Helpers ================= */
 function CenterImage({ url, scale, rotation, flipX }) {
-  const [img] = useImage(url || '', 'anonymous') // giữ CORS anonymous
+  const [img] = useImage(url || '', corsMode())
   if (!img) return null
   return (
     <KImage
@@ -30,16 +33,9 @@ function CenterImage({ url, scale, rotation, flipX }) {
 }
 
 function Overlay({ url, size }) {
-  const [img] = useImage(url || '', 'anonymous') // giữ CORS anonymous
+  const [img] = useImage(url || '', corsMode())
   return img ? (
-    <KImage
-      image={img}
-      x={-size / 2}
-      y={-size / 2}
-      width={size}
-      height={size}
-      listening={false}
-    />
+    <KImage image={img} x={-size / 2} y={-size / 2} width={size} height={size} listening={false} />
   ) : null
 }
 
@@ -93,11 +89,9 @@ function Dropzone({ onPick, className = '' }) {
 
 /* ================= Page ================= */
 export default function Editor() {
-
-
-
+  const { alias: aliasParam } = useParams()
   const [params] = useSearchParams()
-  const alias = params.get('alias') || 'khung-hinh-quoc-khanh'
+  const alias = aliasParam || params.get('alias') || 'quockhanh'
 
   const [frame, setFrame] = useState(null)
   const [userUrl, setUserUrl] = useState('')
@@ -128,7 +122,20 @@ export default function Editor() {
     return () => ro.disconnect()
   }, [])
 
-  useEffect(() => { getFrameByAlias(alias).then(setFrame) }, [alias])
+  // lấy khung theo alias
+  useEffect(() => {
+    getFrameByAlias(alias).then(setFrame)
+  }, [alias])
+
+  // Reset state khi đổi alias
+  useEffect(() => {
+    setUserUrl('')
+    setScale(1)
+    setRotation(0)
+    setFlipX(false)
+    setTextMode(false)
+  }, [alias])
+
   const overlayUrl = useMemo(() => frame?.overlay || frame?.thumb || null, [frame])
 
   const stageRef = useRef(null)
@@ -165,7 +172,6 @@ export default function Editor() {
     if (!node) return
     const pixelRatio = EXPORT_SIZE / viewSize
     try {
-      // Dùng toDataURL của Konva Stage
       const dataURL = node.toDataURL({
         pixelRatio,
         mimeType: 'image/png',
@@ -194,7 +200,6 @@ export default function Editor() {
   const pickFile = (file) => {
     if (!file) return
     const nextUrl = URL.createObjectURL(file)
-    // thu hồi url cũ tránh rò rỉ
     if (lastObjectUrl) URL.revokeObjectURL(lastObjectUrl)
     setLastObjectUrl(nextUrl)
     setUserUrl(nextUrl)
@@ -219,6 +224,7 @@ export default function Editor() {
         {/* Preview */}
         <div className="flex justify-center">
           <Stage
+            key={alias}                 // remount khi đổi alias
             ref={stageRef}
             width={viewSize}
             height={viewSize}
@@ -267,70 +273,93 @@ export default function Editor() {
           </div>
         )}
 
-        {/* ĐÃ CÓ ẢNH → Controls + NÚT ĐỔI HÌNH (button) */}
+        {/* ĐÃ CÓ ẢNH → Controls + NÚT ĐỔI HÌNH */}
         {hasImage && (
           <>
-            {/* dải nút trên */}
             <div className="mt-4 flex items-center justify-between gap-2">
               <div className="flex gap-2">
                 <button
                   onClick={() => setFlipX((v) => !v)}
-                  className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-sm"
+                  className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-sm flex items-center gap-2"
                 >
-                  🖼️ Lật hình
+                  <img src="/icon/fliptheimage.png" alt="Lật hình" className="w-4 h-4" />
+                  <span>Lật hình</span>
                 </button>
                 <button
                   onClick={() => setTextMode((v) => !v)}
-                  className={`px-3 py-1.5 rounded-md text-sm ${textMode ? 'bg-indigo-600 text-white' : 'bg-slate-100 hover:bg-slate-200'
+                  className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 ${textMode
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-slate-100 hover:bg-slate-200'
                     }`}
                 >
-                  🅰️ Văn bản
+                  <img src="/icon/text.png" alt="Văn bản" className="w-4 h-4" />
+                  <span>Văn bản</span>
                 </button>
               </div>
               <button
                 onClick={resetAll}
-                className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-sm"
+                className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-sm flex items-center gap-2"
               >
-                🔄 Reset
+                <img src="/icon/reset.png" alt="Reset" className="w-4 h-4" />
+                <span>Reset</span>
               </button>
             </div>
 
             {/* sliders */}
             <div className="mt-3 grid gap-3 text-sm">
+              {/* Zoom slider */}
               <div className="grid grid-cols-[auto,1fr,auto] items-center gap-2">
                 <button
-                  onClick={() => setScale((s) => clamp(+(s - zoomStep).toFixed(3), 0.2, 3))}
-                  className="h-8 w-8 rounded-md border bg-white hover:bg-slate-50"
+                  onClick={() => setScale((s) => clamp(+(s - 0.05).toFixed(3), 0.2, 3))}
+                  className="h-8 w-8 rounded-md border bg-white hover:bg-slate-50 flex items-center justify-center"
                   title="Thu nhỏ"
                 >
-                  🔍
+                  <img src="/icon/tru.png" alt="Thu nhỏ" className="w-4 h-4" />
                 </button>
+
                 <input
-                  type="range" min="0.2" max="3" step="0.01" value={scale}
-                  onChange={(e) => setScale(+e.target.value)} className="w-full"
+                  type="range"
+                  min="0.2"
+                  max="3"
+                  step="0.01"
+                  value={scale}
+                  onChange={(e) => setScale(+e.target.value)}
+                  className="slider-soft"
+                  style={{ '--percent': `${((scale - 0.2) / (3 - 0.2)) * 100}%` }}
                 />
+
                 <button
-                  onClick={() => setScale((s) => clamp(+(s + zoomStep).toFixed(3), 0.2, 3))}
-                  className="h-8 w-8 rounded-md border bg-white hover:bg-slate-50"
+                  onClick={() => setScale((s) => clamp(+(s + 0.05).toFixed(3), 0.2, 3))}
+                  className="h-8 w-8 rounded-md border bg-white hover:bg-slate-50 flex items-center justify-center"
                   title="Phóng to"
                 >
-                  🔎
+                  <img src="/icon/cong.png" alt="Phóng to" className="w-4 h-4" />
                 </button>
               </div>
+
+              {/* Rotation slider */}
               <div className="grid grid-cols-[auto,1fr,auto] items-center gap-2">
                 <button
-                  onClick={() => setRotation((r) => r - rotStep)}
+                  onClick={() => setRotation((r) => r - 5)}
                   className="h-8 w-8 rounded-md border bg-white hover:bg-slate-50"
                   title="Xoay trái"
                 >
                   ↶
                 </button>
+
                 <input
-                  type="range" min="-180" max="180" step="1" value={rotation}
-                  onChange={(e) => setRotation(+e.target.value)} className="w-full"
+                  type="range"
+                  min="-180"
+                  max="180"
+                  step="1"
+                  value={rotation}
+                  onChange={(e) => setRotation(+e.target.value)}
+                  className="slider-soft"
+                  style={{ '--percent': `${((rotation - (-180)) / (180 - (-180))) * 100}%` }}
                 />
+
                 <button
-                  onClick={() => setRotation((r) => r + rotStep)}
+                  onClick={() => setRotation((r) => r + 5)}
                   className="h-8 w-8 rounded-md border bg-white hover:bg-slate-50"
                   title="Xoay phải"
                 >
@@ -341,7 +370,6 @@ export default function Editor() {
 
             {/* hàng nút dưới */}
             <div className="mt-4 flex items-center justify-between">
-              {/* Nút ĐỔI HÌNH */}
               <div>
                 <input
                   ref={fileInputRef}
@@ -355,22 +383,26 @@ export default function Editor() {
                 />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-3.5 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 font-medium text-sm"
+                  className="px-3.5 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 font-medium text-sm flex items-center gap-2"
                 >
-                  🖼️ Đổi hình
+                  <img src="/icon/image.png" alt="Đổi hình" className="w-4 h-4" />
+                  <span>Đổi hình</span>
                 </button>
               </div>
 
               <button
                 onClick={downloadPNG}
                 disabled={!ready}
-                className={`px-3.5 py-1.5 rounded-md font-medium text-sm ${ready
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  : 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                aria-disabled={!ready}
+                className={`px-3.5 py-1.5 rounded-md text-sm flex items-center gap-2 border transition-colors
+                ${ready
+                    ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
+                    : 'bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed'
                   }`}
                 title={ready ? 'Xuất ảnh PNG' : 'Hãy chờ ảnh/khung sẵn sàng'}
               >
-                ⬇️ Tải về
+                <img src="/icon/download2.png" alt="Tải về" className={`w-4 h-4 ${ready ? '' : 'opacity-60'}`} />
+                <span className="font-bold">Tải về</span>
               </button>
             </div>
 
@@ -400,7 +432,7 @@ export default function Editor() {
         )}
       </div>
 
-      {/* PHẦN CHIA Sẻ */}
+      {/* PHẦN CHIA SẺ */}
       <div ref={shareRef} className="mt-8 flex flex-col items-center">
         <img
           alt="logo"
