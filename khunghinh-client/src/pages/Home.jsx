@@ -9,6 +9,9 @@ import { motion } from 'framer-motion'
 import { MotionCard, MotionStagger, fadeUp } from '../components/Anim'
 import { Play } from "lucide-react";
 
+import { Link } from "react-router-dom";
+
+
 
 /* ===== NỀN XANH KIỂU CUBE (nâng cấp) ===== */
 function BlueCubesBackground() {
@@ -81,6 +84,12 @@ export default function Home() {
       (Array.isArray(f.tags) && f.tags.some(t => String(t).toLowerCase().includes('a80')))
     ).slice(0, 20);
   }, [frames]);
+
+  const tools = [
+    { t: 'Nén ảnh', d: 'Giảm dung lượng ảnh dễ dàng', to: '/compress', icon: <ImageDown className="w-6 h-6" /> },
+    { t: 'Cắt / Xoá nền', d: 'Loại bỏ nền, cắt ảnh nhanh', to: '/remove-bg', icon: <ScissorsSquare className="w-6 h-6" /> },
+    { t: 'Tạo avatar', d: 'Khung ảnh đại diện theo mẫu', to: '/avatar', icon: <ImgIcon className="w-6 h-6" /> },
+  ];
 
   return (
     <div>
@@ -159,23 +168,31 @@ export default function Home() {
                   {a80Frames.map((f, i) => (
                     <li key={f.alias || i} className="shrink-0">
                       <button
-                        onClick={() => nav(`/editor?alias=${f.alias}`)}
-                        className="group block w-[210px] h-[240px] rounded-2xl overflow-hidden ring-1 ring-black/5 bg-white hover:translate-y-[-2px] transition shadow-[0_10px_25px_-12px_rgba(0,0,0,.25)]"
+                        onClick={() => nav(`/editor?alias=${f.alias}`)} // hoặc nav(`/${f.alias}`) nếu dùng route alias ngắn
+                        className="block w-[220px] rounded-2xl overflow-hidden ring-1 ring-black/5 bg-white
+                     shadow-[0_10px_25px_-12px_rgba(0,0,0,.25)] transition-shadow hover:shadow-lg"
                         title={f.name || 'Khung'}
                       >
-                        <div className="relative w-full h-[180px] bg-gray-100">
-                          <img src={f.thumb || f.overlay} alt={f.name || 'frame'} className="w-full h-full object-cover" loading="lazy" />
-                          <div className="absolute inset-0 ring-1 ring-black/5" />
+                        {/* Ô xem trước: VUÔNG, nền trắng để nhìn thấy vùng trong suốt của PNG */}
+                        <div className="relative aspect-square bg-white grid place-items-center">
+                          <img
+                            src={f.overlay || f.thumb}
+                            alt={f.name || 'frame'}
+                            className="max-w-full max-h-full object-contain select-none
+                         [image-rendering:auto] [image-rendering:-webkit-optimize-contrast]"
+                            width="512" height="512"      // hint kích thước giúp nội suy ảnh nét hơn
+                            decoding="async"
+                            loading="lazy"
+                          />
+                          <div className="pointer-events-none absolute inset-0 ring-1 ring-black/5" />
                         </div>
-                        <div className="p-3 text-left">
-                          <div className="line-clamp-1 font-semibold text-[15px] text-gray-800">{f.name || 'Khung A80'}</div>
-                          <div className="mt-0.5 text-xs text-gray-500">{f.author || 'MARKETING VEC'}</div>
-                        </div>
+                        {/* BỎ phần text/info bên dưới */}
                       </button>
                     </li>
                   ))}
                 </ul>
               </div>
+
             </div>
           </div>
         </section>
@@ -189,21 +206,21 @@ export default function Home() {
         <div className="relative max-w-7xl mx-auto px-6 py-12">
           <h2 className="text-2xl font-bold mb-6">Các công cụ tiện lợi</h2>
           <div className="grid md:grid-cols-3 gap-6">
-            {[
-              { t: 'Nén ảnh', d: 'Giảm dung lượng ảnh dễ dàng', icon: <ImageDown className="w-6 h-6" /> },
-              { t: 'Cắt / Xoá nền', d: 'Loại bỏ nền, cắt ảnh nhanh', icon: <ScissorsSquare className="w-6 h-6" /> },
-              { t: 'Tạo avatar', d: 'Khung ảnh đại diện theo mẫu', icon: <ImgIcon className="w-6 h-6" /> },
-            ].map((it, i) => (
-              <MotionCard i={i} key={i}>
+            {tools.map((it, i) => (
+              <MotionCard i={i} key={it.t}>
                 <div className="group rounded-2xl p-6 bg-white/80 ring-1 ring-gray-200 hover:ring-blue-200 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_40px_-12px_rgba(59,130,246,.25)] shine hover-lift">
                   <div className="inline-grid place-items-center w-10 h-10 rounded-xl bg-blue-50 ring-1 ring-blue-200/60 text-blue-700">
                     {it.icon}
                   </div>
                   <h3 className="font-semibold mt-3 mb-1">{it.t}</h3>
                   <p className="text-sm text-gray-600">{it.d}</p>
-                  <button className="mt-4 px-4 py-2 rounded-lg text-blue-700 font-medium ring-1 ring-blue-200 hover:bg-blue-50">
+
+                  <Link
+                    to={it.to}
+                    className="mt-4 inline-block px-4 py-2 rounded-lg text-blue-700 font-medium ring-1 ring-blue-200 hover:bg-blue-50"
+                  >
                     Thử ngay
-                  </button>
+                  </Link>
                 </div>
               </MotionCard>
             ))}
@@ -261,7 +278,7 @@ export default function Home() {
       {/* ============ TEMPLATES ============ */}
       <section className="relative overflow-hidden">
         {/* Nền xanh gradient A80 */}
-        <div
+        <div 
           aria-hidden
           className="absolute inset-0 
                bg-gradient-to-b from-[#0d47a1] via-[#1976d2] to-[#1565c0]"

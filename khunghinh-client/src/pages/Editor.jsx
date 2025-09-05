@@ -1,20 +1,21 @@
 // src/pages/Editor.jsx
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getFrameByAlias } from '../utils/frameService'
 import useImage from 'use-image'
-import { Stage, Layer, Image as KImage, Rect, Group, Text as KText } from 'react-konva'
+import { Stage, Layer, Image as KImage, Rect, Group, Text as KText, Circle } from 'react-konva'
 
 const EXPORT_SIZE = 1080
 const PREVIEW_MAX = 500
 const PREVIEW_MIN = 300
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v))
+const nearly = (a, b, eps = 2) => Math.abs(a - b) <= eps
 
 // luôn dùng anonymous để cho phép canvas export nếu server trả CORS đúng
 const corsMode = () => 'anonymous'
 
 /* ================= Helpers ================= */
-function CenterImage({ url, scale, rotation, flipX }) {
+function CenterImage({ url, scale, rotation, flipX, dragBound }) {
   const [img] = useImage(url || '', corsMode())
   if (!img) return null
   return (
@@ -25,6 +26,7 @@ function CenterImage({ url, scale, rotation, flipX }) {
       offsetX={img.width / 2}
       offsetY={img.height / 2}
       draggable
+      dragBoundFunc={dragBound}
       scaleX={scale * (flipX ? -1 : 1)}
       scaleY={scale}
       rotation={rotation}
@@ -89,15 +91,29 @@ function Dropzone({ onPick, className = '' }) {
 
 /* ================= Page ================= */
 export default function Editor() {
-  const { alias: aliasParam } = useParams()
+  const navigate = useNavigate()
+  const { alias: aliasFromPath } = useParams()
   const [params] = useSearchParams()
-  const alias = aliasParam || params.get('alias') || 'quockhanh'
+
+  // Nếu người dùng vào /editor?alias=abc → redirect sang /abc (URL đẹp)
+  useEffect(() => {
+    const q = params.get('alias')
+    if (!aliasFromPath && q) {
+      navigate(`/${q}`, { replace: true })
+    }
+  }, [aliasFromPath, params, navigate])
+
+  // Alias sử dụng trong Editor (mặc định nếu đang ở /editor không có alias)
+  const alias = aliasFromPath || 'quockhanh'
 
   const [frame, setFrame] = useState(null)
+  const [frameError, setFrameError] = useState('')
   const [userUrl, setUserUrl] = useState('')
+
   const [scale, setScale] = useState(1)
   const [rotation, setRotation] = useState(0)
   const [flipX, setFlipX] = useState(false)
+  const [maskCircle, setMaskCircle] = useState(false)
 
   // Văn bản
   const [textMode, setTextMode] = useState(false)
@@ -122,9 +138,36 @@ export default function Editor() {
     return () => ro.disconnect()
   }, [])
 
+  const [copied, setCopied] = useState(false);
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      // Ẩn thông báo sau 1.5s
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e) {
+      console.error(e);
+      alert('Không thể sao chép liên kết.');
+    }
+  };
+
   // lấy khung theo alias
   useEffect(() => {
-    getFrameByAlias(alias).then(setFrame)
+    let alive = true
+    setFrame(null)
+    setFrameError('')
+    getFrameByAlias(alias)
+      .then((f) => { if (alive) setFrame(f || null); if (alive && !f) setFrameError('Không tìm thấy khung cho alias này.') })
+      .catch(() => alive && setFrameError('Không tải được khung (overlay).'))
+    return () => { alive = false }
+  }, [alias])
+
+  // update tiêu đề trang theo alias
+  useEffect(() => {
+    const old = document.title
+    document.title = `Editor – ${alias}`
+    return () => { document.title = old }
   }, [alias])
 
   // Reset state khi đổi alias
@@ -134,6 +177,7 @@ export default function Editor() {
     setRotation(0)
     setFlipX(false)
     setTextMode(false)
+    setMaskCircle(false)
   }, [alias])
 
   const overlayUrl = useMemo(() => frame?.overlay || frame?.thumb || null, [frame])
@@ -141,7 +185,7 @@ export default function Editor() {
   const stageRef = useRef(null)
   const fileInputRef = useRef(null)
   const shareRef = useRef(null)
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : ''
+  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/${alias}` : ''
 
   // sẵn sàng khi có ảnh người dùng và overlay đã xác định
   useEffect(() => {
@@ -167,16 +211,40 @@ export default function Editor() {
     setScale((s) => clamp(s * factor, 0.2, 3))
   }
 
+  // phím tắt tiện dụng
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target && ['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return
+      if (e.key === '[') setRotation((r) => r - 5)
+      if (e.key === ']') setRotation((r) => r + 5)
+      if (e.key === '+' || e.key === '=') setScale((s) => clamp(+(s + 0.05).toFixed(3), 0.2, 3))
+      if (e.key === '-' || e.key === '_') setScale((s) => clamp(+(s - 0.05).toFixed(3), 0.2, 3))
+      if (e.key.toLowerCase() === 'r') resetAll()
+      if (e.key.toLowerCase() === 'f') setFlipX((v) => !v)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // snap rotation về 0° nếu gần
+  useEffect(() => {
+    if (nearly(rotation % 360, 0)) {
+      if (!nearly(rotation, 0)) setRotation(0)
+    }
+  }, [rotation])
+
+  // tính drag-bound để ảnh không bị kéo mất khỏi viewport
+  const dragBound = (pos) => {
+    const limit = viewSize * 0.6
+    return { x: clamp(pos.x, -limit, limit), y: clamp(pos.y, -limit, limit) }
+  }
+
   const downloadPNG = () => {
     const node = stageRef.current
     if (!node) return
     const pixelRatio = EXPORT_SIZE / viewSize
     try {
-      const dataURL = node.toDataURL({
-        pixelRatio,
-        mimeType: 'image/png',
-        quality: 1,
-      })
+      const dataURL = node.toDataURL({ pixelRatio, mimeType: 'image/png', quality: 1 })
       const a = document.createElement('a')
       a.href = dataURL
       a.download = `${alias}.png`
@@ -193,8 +261,6 @@ export default function Editor() {
   }
 
   const resetAll = () => { setScale(1); setRotation(0); setFlipX(false); setTextMode(false) }
-  const zoomStep = 0.05
-  const rotStep = 5
   const hasImage = !!userUrl
 
   const pickFile = (file) => {
@@ -207,9 +273,7 @@ export default function Editor() {
 
   // thu hồi khi unmount
   useEffect(() => {
-    return () => {
-      if (lastObjectUrl) URL.revokeObjectURL(lastObjectUrl)
-    }
+    return () => { if (lastObjectUrl) URL.revokeObjectURL(lastObjectUrl) }
   }, [lastObjectUrl])
 
   return (
@@ -244,10 +308,28 @@ export default function Editor() {
               {!hasImage && (
                 <Rect x={0} y={0} width={viewSize} height={viewSize} fill="#f3f4f6" />
               )}
+
+              {/* Nhóm nội dung ở giữa khung */}
               <Group x={viewSize / 2} y={viewSize / 2}>
-                {hasImage && (
-                  <CenterImage url={userUrl} scale={scale} rotation={rotation} flipX={flipX} />
+                {/* Mask tròn (tùy chọn) */}
+                {maskCircle ? (
+                  <>
+                    <Group clipFunc={(ctx) => {
+                      ctx.arc(0, 0, viewSize / 2, 0, Math.PI * 2, false)
+                    }}>
+                      {hasImage && (
+                        <CenterImage url={userUrl} scale={scale} rotation={rotation} flipX={flipX} dragBound={dragBound} />
+                      )}
+                    </Group>
+                    {/* Viền tròn nhẹ để người dùng thấy mask */}
+                    <Circle x={0} y={0} radius={viewSize / 2} stroke="#e5e7eb" strokeWidth={1} />
+                  </>
+                ) : (
+                  hasImage && (
+                    <CenterImage url={userUrl} scale={scale} rotation={rotation} flipX={flipX} dragBound={dragBound} />
+                  )
                 )}
+
                 {textMode && hasImage && (
                   <KText
                     text={text}
@@ -257,14 +339,23 @@ export default function Editor() {
                     y={-viewSize * 0.18}
                     align="center"
                     width={viewSize}
+                    offsetX={viewSize / 2}
                     draggable
                   />
                 )}
+
                 {overlayUrl && <Overlay url={overlayUrl} size={viewSize} />}
               </Group>
             </Layer>
           </Stage>
         </div>
+
+        {/* THÔNG BÁO nếu thiếu overlay */}
+        {frameError && (
+          <p className="mt-3 text-center text-sm text-amber-700 bg-amber-50 rounded-md px-3 py-2">
+            {frameError}
+          </p>
+        )}
 
         {/* CHƯA CÓ ẢNH → Dropzone to */}
         {!hasImage && (
@@ -277,7 +368,7 @@ export default function Editor() {
         {hasImage && (
           <>
             <div className="mt-4 flex items-center justify-between gap-2">
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setFlipX((v) => !v)}
                   className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-sm flex items-center gap-2"
@@ -285,6 +376,7 @@ export default function Editor() {
                   <img src="/icon/fliptheimage.png" alt="Lật hình" className="w-4 h-4" />
                   <span>Lật hình</span>
                 </button>
+
                 <button
                   onClick={() => setTextMode((v) => !v)}
                   className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 ${textMode
@@ -295,7 +387,19 @@ export default function Editor() {
                   <img src="/icon/text.png" alt="Văn bản" className="w-4 h-4" />
                   <span>Văn bản</span>
                 </button>
+
+                <button
+                  onClick={() => setMaskCircle((v) => !v)}
+                  className={`px-3 py-1.5 rounded-md text-sm ${maskCircle
+                    ? 'bg-sky-600 text-white'
+                    : 'bg-slate-100 hover:bg-slate-200'
+                    }`}
+                  title="Bật/Tắt mask tròn"
+                >
+                  Mặt nạ tròn
+                </button>
               </div>
+
               <button
                 onClick={resetAll}
                 className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-sm flex items-center gap-2"
@@ -434,59 +538,89 @@ export default function Editor() {
 
       {/* PHẦN CHIA SẺ */}
       <div ref={shareRef} className="mt-8 flex flex-col items-center">
-        <img
-          alt="logo"
-          src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Huy_hieu_doan.svg/120px-Huy_hieu_doan.svg.png"
-          className="w-14 h-14 object-contain"
-        />
-        <h3 className="mt-2 font-semibold text-base">Ban Tuyên giáo TW Đoàn</h3>
-        <div className="text-gray-500 text-xs mt-1">08:17 18/08/2025</div>
-
         <div className="mt-4 w-full max-w-[520px] rounded-xl border border-dashed border-gray-300 p-3">
           <div className="text-gray-600 font-medium mb-2 text-sm">Chia sẻ</div>
 
           <div className="relative">
+            {/* Ô hiển thị link – bấm vào là copy */}
             <input
-              readOnly value={shareUrl}
-              className="w-full rounded-md border border-indigo-200 bg-indigo-50/40 px-3 py-2 pr-10 outline-none text-sm"
+              readOnly
+              value={shareUrl}
+              onClick={copyLink}
+              className="w-full rounded-md border border-indigo-200 bg-indigo-50/40 px-3 py-2 pr-20 outline-none text-sm cursor-pointer"
+              title="Bấm để sao chép liên kết"
             />
+
+            {/* Nút copy */}
             <button
-              onClick={() => navigator.clipboard.writeText(shareUrl)}
+              onClick={copyLink}
               className="absolute right-1 top-1/2 -translate-y-1/2 px-2 py-1 rounded-md bg-indigo-600 text-white text-xs hover:bg-indigo-700"
               title="Sao chép"
             >
               ⧉
             </button>
+
+            {/* Thông báo đã sao chép */}
+            <div
+              aria-live="polite"
+              className={`absolute right-12 top-1/2 -translate-y-1/2 text-xs
+          transition-opacity duration-200
+          ${copied ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            >
+              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 rounded px-2 py-0.5 shadow-sm">
+                Đã sao chép ✓
+              </span>
+            </div>
           </div>
 
           <div className="mt-4 flex flex-col items-center gap-2">
             <img
-              alt="qr" width="120" height="120"
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(shareUrl)}`}
+              alt="qr"
+              width="120"
+              height="120"
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(
+                shareUrl
+              )}`}
               className="rounded-md"
             />
             <div className="flex gap-2">
-              <a
+              <button
+                onClick={async () => {
+                  const url = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(
+                    shareUrl
+                  )}`;
+                  try {
+                    const res = await fetch(url);
+                    const blob = await res.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+
+                    // 👉 dùng alias nếu có, mặc định "qr"
+                    const fileName = alias ? `qr-${alias}.png` : "qr.png";
+
+                    const a = document.createElement("a");
+                    a.href = blobUrl;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(blobUrl);
+                  } catch (err) {
+                    alert("Không tải được mã QR");
+                    console.error(err);
+                  }
+                }}
                 className="px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 text-sm"
-                href={`https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(shareUrl)}`}
-                download="qr.png"
               >
                 Tải mã QR
-              </a>
-              <button
-                onClick={downloadPNG}
-                disabled={!ready}
-                className={`px-3 py-1.5 rounded-md text-sm ${ready
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                  : 'bg-slate-200 text-slate-500 cursor-not-allowed'
-                  }`}
-              >
-                Tải ảnh
               </button>
             </div>
           </div>
         </div>
       </div>
+
+
+
+
     </div>
   )
 }

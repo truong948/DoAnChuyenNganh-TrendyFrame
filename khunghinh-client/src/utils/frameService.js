@@ -51,7 +51,7 @@ export const FRAMES = [
 
   {
     alias: 'khung-phuong-tan-son-nhi',
-    name: 'Khung Phương Tân Sơn Nhì',
+    name: 'Khung Phường Tân Sơn Nhì',
     thumb: '/frames/kh2.png',
     overlay: '/frames/kh2.png',
     author: 'MARKETING VEC',
