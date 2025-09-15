@@ -6,3 +6,6 @@ bin/
 obj/
 *.Development.json
 appsettings.Development.json
+appsettings.Development.json
+*.Development.json
+
