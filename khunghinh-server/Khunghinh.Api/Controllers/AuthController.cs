@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 
 namespace Khunghinh.Api.Controllers
 {
@@ -8,26 +9,38 @@ namespace Khunghinh.Api.Controllers
     [Route("api/[controller]")]
     public class AuthController : Controller
     {
-        // Bước 1: mở Google OAuth
+        private readonly string _spaOrigin;
+
+        public AuthController(IConfiguration cfg)
+        {
+            // cấu hình trong appsettings: "FrontendOrigin": "http://localhost:5173"
+            _spaOrigin = cfg["FrontendOrigin"] ?? "http://localhost:5173";
+        }
+
+        // Bước 1: mở Google OAuth (popup gọi endpoint này)
         [HttpGet("google")]
         public IActionResult Google()
         {
-            return Challenge(
-                new AuthenticationProperties { RedirectUri = Url.Action("Callback") },
-                "Google"
-            );
+            var props = new AuthenticationProperties
+            {
+                RedirectUri = Url.Content("~/api/auth/callback")
+            };
+            return Challenge(props, "Google"); // hoặc GoogleDefaults.AuthenticationScheme
         }
 
-        // Bước 2: Google redirect về đây → trả script đóng popup
+        // Bước 2: Google redirect về đây -> đóng popup & báo cho SPA
+        [Authorize]
         [HttpGet("callback")]
         public ContentResult Callback()
         {
-            return Content(@"<!doctype html><script>
-                try{window.opener&&window.opener.postMessage('auth:success','*')}catch(e){};window.close();
-            </script>", "text/html");
+            const string spa = "http://localhost:5173";
+            return Content($@"<!doctype html><script>
+      try{{ window.opener && window.opener.postMessage('auth:success','{spa}'); }}catch(e){{}}
+      window.close();
+    </script>", "text/html");
         }
 
-        // Bước 3: frontend gọi /api/auth/me để lấy thông tin user
+        // Bước 3: SPA gọi để lấy thông tin user
         [Authorize]
         [HttpGet("me")]
         public IActionResult Me()
@@ -49,9 +62,8 @@ namespace Khunghinh.Api.Controllers
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
-            await HttpContext.SignOutAsync();
+            await HttpContext.SignOutAsync(); // mặc định cookie scheme
             return Ok();
         }
-
     }
 }

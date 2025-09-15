@@ -1,55 +1,72 @@
 ﻿using Khunghinh.Api.Data.Entities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ========== Database ==========
+// ===== Config tiện dùng =====
+var frontendOrigin = builder.Configuration["FrontendOrigin"] ?? "http://localhost:5173";
+
+// ===== Database =====
 builder.Services.AddDbContext<KhunghinhContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
-// ========== CORS ==========
+// ===== CORS =====
 builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("spa", p => p
-        .WithOrigins("http://localhost:5173", "http://localhost:3000")
+        .WithOrigins(frontendOrigin, "http://localhost:3000")
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials());
 });
 
-// ========== Controllers & Swagger ==========
-builder.Services.AddControllers()
-    .AddJsonOptions(o =>
-    {
-        o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-        o.JsonSerializerOptions.WriteIndented = false;
-    });
+// ===== Controllers & Swagger =====
+builder.Services.AddControllers().AddJsonOptions(o =>
+{
+    o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    o.JsonSerializerOptions.WriteIndented = false;
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// ========== Authentication Google ==========
-builder.Services.AddAuthentication("Cookies")
-    .AddCookie("Cookies", o =>
+// ===== Authentication (Cookie + Google) =====
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
     {
-        o.SlidingExpiration = true;
-        o.Cookie.SameSite = SameSiteMode.None;
-        o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.Name = "kh_auth";
+        options.SlidingExpiration = true;
+        options.Cookie.SameSite = SameSiteMode.None;             // SPA khác origin
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // cần HTTPS
+
+        // API style: trả mã 401/403, không redirect HTML
+        options.Events = new CookieAuthenticationEvents
+        {
+            OnRedirectToLogin = ctx => { ctx.Response.StatusCode = 401; return Task.CompletedTask; },
+            OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = 403; return Task.CompletedTask; }
+        };
     })
-    .AddGoogle("Google", o =>
+    .AddGoogle("Google", options =>
     {
-        o.ClientId = builder.Configuration["Auth:Google:ClientId"]!;
-        o.ClientSecret = builder.Configuration["Auth:Google:ClientSecret"]!;
-        o.SaveTokens = true;
-        o.ClaimActions.MapJsonKey("picture", "picture", "url"); // đảm bảo có claim 'picture'
+        options.ClientId = builder.Configuration["Auth:Google:ClientId"]!;
+        options.ClientSecret = builder.Configuration["Auth:Google:ClientSecret"]!;
+        options.CallbackPath = "/signin-google";
+        options.SaveTokens = false;
+        options.Scope.Add("profile");
+        options.Scope.Add("email");
+        options.ClaimActions.MapJsonKey("picture", "picture", "url");
+        // KHÔNG override OnRedirectToAuthorizationEndpoint
     });
+
 
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// ========== Middleware ==========
+// ===== Middleware =====
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -63,10 +80,11 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// demo endpoint (giữ cho nhanh)
+// demo endpoint
 var summaries = new[]
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
+    "Freezing","Bracing","Chilly","Cool","Mild",
+    "Warm","Balmy","Hot","Sweltering","Scorching"
 };
 
 app.MapGet("/weatherforecast", () =>
@@ -77,8 +95,7 @@ app.MapGet("/weatherforecast", () =>
             DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
             Random.Shared.Next(-20, 55),
             summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
+        )).ToArray();
     return forecast;
 })
 .WithName("GetWeatherForecast");
