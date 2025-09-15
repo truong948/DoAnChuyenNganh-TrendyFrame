@@ -2,3 +2,7 @@ bin/
 obj/
 *.Development.json
 appsettings.Development.json
+bin/
+obj/
+*.Development.json
+appsettings.Development.json
