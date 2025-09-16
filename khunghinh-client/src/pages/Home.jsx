@@ -1,5 +1,5 @@
 // src/pages/Home.jsx
-import { Image as ImgIcon, ScissorsSquare, ImageDown } from 'lucide-react'
+import { Image as ImgIcon, ImageDown, Maximize2 } from 'lucide-react'
 import FrameGrid from '../components/FrameGrid'
 import FrameCardClassic from '../components/FrameCardClassic'
 import { useEffect, useMemo, useState } from 'react'
@@ -87,9 +87,11 @@ export default function Home() {
 
   const tools = [
     { t: 'Nén ảnh', d: 'Giảm dung lượng ảnh dễ dàng', to: '/compress', icon: <ImageDown className="w-6 h-6" /> },
-    { t: 'Cắt / Xoá nền', d: 'Loại bỏ nền, cắt ảnh nhanh', to: '/remove-bg', icon: <ScissorsSquare className="w-6 h-6" /> },
+    { t: 'Thay đổi kích thước', d: 'Resize ảnh theo kích thước mong muốn', to: '/resize', icon: <Maximize2 className="w-6 h-6" /> },
     { t: 'Tạo avatar', d: 'Khung ảnh đại diện theo mẫu', to: '/avatar', icon: <ImgIcon className="w-6 h-6" /> },
   ];
+
+
 
   return (
     <div>
@@ -278,7 +280,7 @@ export default function Home() {
       {/* ============ TEMPLATES ============ */}
       <section className="relative overflow-hidden">
         {/* Nền xanh gradient A80 */}
-        <div 
+        <div
           aria-hidden
           className="absolute inset-0 
                bg-gradient-to-b from-[#0d47a1] via-[#1976d2] to-[#1565c0]"

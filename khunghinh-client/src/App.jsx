@@ -7,17 +7,17 @@ import Tools from './pages/Tools.jsx'
 import Trending from './pages/Trending.jsx'
 import Editor from './pages/Editor.jsx'
 import Login from './pages/Login.jsx'
-import Compress from './pages/Compress.jsx'   // 👈 thêm trang nén ảnh
-import ScrollToTop from './components/ScrollToTop.jsx'   // 👈 thêm ScrollToTop
+import Compress from './pages/Compress.jsx'
+import Resize from './pages/Resize.jsx'           // ✅ thêm trang Resize
+import ScrollToTop from './components/ScrollToTop.jsx'
 
 export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <div className="flex flex-col min-h-screen">   {/* 👈 layout full height */}
+      <div className="flex flex-col min-h-screen">
         <Navbar />
 
-        {/* nội dung chính chiếm hết phần còn lại */}
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<Home />} />
@@ -26,13 +26,13 @@ export default function App() {
             <Route path="/editor" element={<Editor />} />
             <Route path="/login" element={<Login />} />
             <Route path="/compress" element={<Compress />} />
-            <Route path="/:alias" element={<Editor />} />
+            <Route path="/resize" element={<Resize />} />   {/* ✅ route mới */}
+            <Route path="/:alias" element={<Editor />} />   {/* để cuối để không “ăn” /resize */}
           </Routes>
         </main>
 
-        <Footer />   {/* 👈 sẽ luôn ở cuối */}
+        <Footer />
       </div>
     </BrowserRouter>
   )
 }
-
