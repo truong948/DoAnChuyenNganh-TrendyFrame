@@ -9,6 +9,7 @@ import Editor from './pages/Editor.jsx'
 import Login from './pages/Login.jsx'
 import Compress from './pages/Compress.jsx'
 import Resize from './pages/Resize.jsx'           // ✅ thêm trang Resize
+import ImageToPdf from './pages/ImageToPdf.jsx'
 import ScrollToTop from './components/ScrollToTop.jsx'
 
 export default function App() {
@@ -26,7 +27,8 @@ export default function App() {
             <Route path="/editor" element={<Editor />} />
             <Route path="/login" element={<Login />} />
             <Route path="/compress" element={<Compress />} />
-            <Route path="/resize" element={<Resize />} />   {/* ✅ route mới */}
+            <Route path="/resize" element={<Resize />} />   {/* ✅ route mới */}\
+            <Route path="/image-to-pdf" element={<ImageToPdf />} /> 
             <Route path="/:alias" element={<Editor />} />   {/* để cuối để không “ăn” /resize */}
           </Routes>
         </main>

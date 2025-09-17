@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { MotionCard, MotionStagger, fadeUp } from '../components/Anim'
 import { Play } from "lucide-react";
+import { FileDown } from 'lucide-react'
 
 import { Link } from "react-router-dom";
 
@@ -88,7 +89,7 @@ export default function Home() {
   const tools = [
     { t: 'Nén ảnh', d: 'Giảm dung lượng ảnh dễ dàng', to: '/compress', icon: <ImageDown className="w-6 h-6" /> },
     { t: 'Thay đổi kích thước', d: 'Resize ảnh theo kích thước mong muốn', to: '/resize', icon: <Maximize2 className="w-6 h-6" /> },
-    { t: 'Tạo avatar', d: 'Khung ảnh đại diện theo mẫu', to: '/avatar', icon: <ImgIcon className="w-6 h-6" /> },
+    { t: 'Ảnh → PDF', d: 'Gộp nhiều ảnh thành một PDF', to: '/image-to-pdf', icon: <FileDown className="w-6 h-6" /> },
   ];
 
 

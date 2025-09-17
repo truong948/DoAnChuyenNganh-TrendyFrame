@@ -9,7 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tensorflow-models/body-pix": "^2.2.1",
+    "@tensorflow/tfjs": "^4.22.0",
     "framer-motion": "^11.0.0",
+    "jspdf": "^3.0.2",
     "konva": "^9.3.22",
     "lucide-react": "^0.544.0",
     "qrcode.react": "^3.1.0",
