@@ -1,4 +1,4 @@
-name: Build and deploy ASP.NET Core API to Azure Web App - TrendyFrameAvata
+name: Deploy ASP.NET Core API to Azure Web App - TrendyFrameAvata
 
 on:
   push:
@@ -8,13 +8,13 @@ on:
 env:
   PROJECT_PATH: khunghinh-server/Khunghinh.Api/Khunghinh.Api.csproj
   PUBLISH_DIR: ${{ github.workspace }}/published
+  AZURE_APP_NAME: TrendyFrameAvata
 
 jobs:
   build:
     runs-on: windows-latest
     permissions:
       contents: read
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,9 +43,7 @@ jobs:
     runs-on: windows-latest
     needs: build
     permissions:
-      id-token: write
       contents: read
-
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v4
@@ -53,16 +51,9 @@ jobs:
           name: api-published
           path: ./drop
 
-      - name: Azure login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_D991BDE4859648ABB23B3D3BFCDA85B0 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C44B7D03CB264514AA89DFDB9D8E8DDB }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_60728868ACE04462BD5348D757B48C34 }}
-
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: TrendyFrameAvata         # đúng tên App Service của bạn
-          slot-name: Production
+          app-name: ${{ env.AZURE_APP_NAME }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
           package: ./drop
